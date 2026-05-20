@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANET Routing Protocol Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #050810;
+    --surface: #0c1120;
+    --surface2: #111827;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --green: #00ff88;
+    --yellow: #ffd700;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --aodv: #00d4ff;
+    --dsr: #ff6b35;
+    --dsdv: #00ff88;
+    --olsr: #ffd700;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(5,8,16,0.95);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+  }
+  .logo span { color: var(--accent); }
+  .badge {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 20px;
+    letter-spacing: 0.1em;
+  }
+  .team-info { font-size: 0.65rem; color: var(--muted); text-align: right; line-height: 1.6; }
+
+  /* LAYOUT */
+  .main { display: grid; grid-template-columns: 1fr 340px; gap: 0; height: calc(100vh - 61px); }
+
+  /* LEFT PANEL */
+  .left { display: flex; flex-direction: column; padding: 20px; gap: 16px; overflow-y: auto; }
+
+  /* RIGHT PANEL */
+  .right {
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* CANVAS AREA */
+  .canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .canvas-label {
+    position: absolute; top: 12px; left: 14px;
+    font-size: 0.6rem; color: var(--muted); letter-spacing: 0.12em; z-index: 5;
+  }
+  .canvas-protocol-tag {
+    position: absolute; top: 10px; right: 14px;
+    font-size: 0.7rem; font-weight: 600;
+    padding: 3px 10px; border-radius: 4px;
+    z-index: 5; transition: all 0.3s;
+  }
+  canvas { display: block; width: 100%; }
+
+  /* SECTION TITLES */
+  .sec-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 14px 20px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* PROTOCOL SELECTOR */
+  .protocol-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    padding: 14px 20px;
+  }
+  .proto-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+  .proto-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .proto-btn.active { border-color: currentColor; }
+  .proto-btn.active::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: currentColor;
+  }
+  .proto-name { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; }
+  .proto-type { font-size: 0.6rem; color: var(--muted); margin-top: 2px; }
+  .proto-btn[data-p="AODV"] { color: var(--aodv); }
+  .proto-btn[data-p="DSR"]  { color: var(--dsr); }
+  .proto-btn[data-p="DSDV"] { color: var(--dsdv); }
+  .proto-btn[data-p="OLSR"] { color: var(--olsr); }
+
+  /* CONTROLS */
+  .controls { padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ctrl-label { font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
+  .ctrl-val { font-size: 0.7rem; color: var(--accent); min-width: 28px; text-align: right; }
+  input[type=range] {
+    flex: 1; -webkit-appearance: none; height: 2px;
+    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+
+  /* ACTION BUTTONS */
+  .action-row { display: flex; gap: 8px; padding: 0 20px 14px; }
+  .btn {
+    flex: 1; padding: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; font-weight: 600; border-radius: 5px;
+    cursor: pointer; border: none; transition: all 0.2s; letter-spacing: 0.05em;
+  }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: #33ddff; transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* METRICS CARDS */
+  .metrics-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px;
+  }
+  .metric-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px; position: relative; overflow: hidden;
+    transition: all 0.3s;
+  }
+  .metric-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent); transform: scaleX(0); transition: transform 0.5s;
+    transform-origin: left;
+  }
+  .metric-card.updating::after { transform: scaleX(1); }
+  .m-label { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .m-val {
+    font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800;
+    margin: 4px 0 2px; transition: all 0.4s;
+  }
+  .m-unit { font-size: 0.55rem; color: var(--muted); }
+  .m-trend { font-size: 0.6rem; margin-top: 4px; }
+  .up { color: var(--green); } .down { color: var(--accent2); }
+
+  /* MINI CHARTS */
+  .charts-area { padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .chart-wrap { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+  .chart-title { font-size: 0.6rem; color: var(--muted); margin-bottom: 8px; letter-spacing: 0.1em; }
+  .mini-chart { height: 50px; position: relative; }
+  svg.sparkline { width: 100%; height: 100%; overflow: visible; }
+
+  /* LOG */
+  .log-area { padding: 0 20px 14px; }
+  .log-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px; height: 100px; overflow-y: auto;
+    font-size: 0.6rem; line-height: 1.8;
+  }
+  .log-box::-webkit-scrollbar { width: 3px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .log-entry { color: var(--muted); }
+  .log-entry .ts { color: var(--accent3); margin-right: 6px; }
+  .log-entry.ok .msg { color: var(--green); }
+  .log-entry.warn .msg { color: var(--yellow); }
+  .log-entry.info .msg { color: var(--accent); }
+
+  /* COMPARISON TABLE */
+  .compare-wrap { padding: 14px 20px; }
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 0.62rem; }
+  .compare-table th {
+    color: var(--muted); text-align: left; padding: 6px 8px;
+    border-bottom: 1px solid var(--border); font-weight: 400; letter-spacing: 0.08em;
+  }
+  .compare-table td { padding: 7px 8px; border-bottom: 1px solid rgba(30,45,69,0.5); }
+  .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .bar-cell { width: 80px; }
+  .mini-bar { height: 4px; border-radius: 2px; background: var(--border); position: relative; }
+  .mini-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+  /* STATUS INDICATOR */
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .status-dot.live { background: var(--green); animation: blink 1.2s ease infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; height: auto; }
+    .right { border-left: none; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MANET<span>.</span>SIM <span style="font-size:0.7rem;font-weight:400;color:var(--muted);margin-left:8px;">v2.0</span></div>
+  <div class="badge">ISWE205L — COMPUTER NETWORKS</div>
+  <div class="team-info">Sharika · Hamritha · Shanmathi<br>Performance Analysis of Routing Protocols</div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT: CANVAS + METRICS + CHARTS -->
+  <div class="left">
+
+    <!-- Canvas -->
+    <div class="canvas-wrap">
+      <div class="canvas-label"><span class="status-dot live"></span>LIVE SIMULATION</div>
+      <div class="canvas-protocol-tag" id="protoTag">AODV</div>
+      <canvas id="manetCanvas" height="360"></canvas>
+    </div>
+
+    <!-- Metrics -->
+    <div>
+      <div class="sec-title" style="padding:0 0 8px;border:none;">REAL-TIME METRICS</div>
+      <div class="metrics-grid">
+        <div class="metric-card" id="mc-pdr">
+          <div class="m-label">Packet Delivery Ratio</div>
+          <div class="m-val" id="v-pdr">—</div>
+          <div class="m-unit">%</div>
+          <div class="m-trend" id="t-pdr">–</div>
+        </div>
+        <div class="metric-card" id="mc-delay">
+          <div class="m-label">End-to-End Delay</div>
+          <div class="m-val" id="v-delay">—</div>
+          <div class="m-unit">ms</div>
+          <div class="m-trend" id="t-delay">–</div>
+        </div>
+        <div class="metric-card" id="mc-tput">
+          <div class="m-label">Throughput</div>
+          <div class="m-val" id="v-tput">—</div>
+          <div class="m-unit">kbps</div>
+          <div class="m-trend" id="t-tput">–</div>
+        </div>
+        <div class="metric-card" id="mc-ovhd">
+          <div class="m-label">Routing Overhead</div>
+          <div class="m-val" id="v-ovhd">—</div>
+          <div class="m-unit">ctrl pkts/s</div>
+          <div class="m-trend" id="t-ovhd">–</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sparkline Charts -->
+    <div class="charts-area">
+      <div class="chart-wrap">
+        <div class="chart-title">PDR HISTORY (last 20 readings)</div>
+        <div class="mini-chart"><svg class="sparkline" id="spark-pdr" viewBox="0 0 300 50" preserveAspectRatio="none"></svg></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">THROUGHPUT HISTORY (last 20 readings)</div>
+        <div class="mini-chart"><svg class="sparkline" id="spark-tput" viewBox="0 0 300 50" preserveAspectRatio="none"></svg></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+
+    <!-- Protocol Selector -->
+    <div class="sec-title">SELECT PROTOCOL</div>
+    <div class="protocol-grid">
+      <button class="proto-btn active" data-p="AODV" onclick="selectProtocol('AODV')">
+        <div class="proto-name">AODV</div>
+        <div class="proto-type">Reactive</div>
+      </button>
+      <button class="proto-btn" data-p="DSR" onclick="selectProtocol('DSR')">
+        <div class="proto-name">DSR</div>
+        <div class="proto-type">Reactive</div>
+      </button>
+      <button class="proto-btn" data-p="DSDV" onclick="selectProtocol('DSDV')">
+        <div class="proto-name">DSDV</div>
+        <div class="proto-type">Proactive</div>
+      </button>
+      <button class="proto-btn" data-p="OLSR" onclick="selectProtocol('OLSR')">
+        <div class="proto-name">OLSR</div>
+        <div class="proto-type">Proactive</div>
+      </button>
+    </div>
+
+    <!-- Controls -->
+    <div class="sec-title">SIMULATION PARAMETERS</div>
+    <div class="controls">
+      <div class="ctrl-row">
+        <span class="ctrl-label">Nodes</span>
+        <input type="range" id="nodeCount" min="5" max="30" value="12" oninput="updateSim()">
+        <span class="ctrl-val" id="nodeCountVal">12</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Mobility</span>
+        <input type="range" id="mobility" min="1" max="10" value="4" oninput="updateSim()">
+        <span class="ctrl-val" id="mobilityVal">4</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Traffic Load</span>
+        <input type="range" id="traffic" min="1" max="10" value="5" oninput="updateSim()">
+        <span class="ctrl-val" id="trafficVal">5</span>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" onclick="runSimulation()">▶ RUN SIM</button>
+      <button class="btn btn-secondary" onclick="resetSim()">↺ RESET</button>
+    </div>
+
+    <!-- Log -->
+    <div class="sec-title">EVENT LOG</div>
+    <div class="log-area">
+      <div class="log-box" id="logBox"></div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="sec-title">PROTOCOL COMPARISON</div>
+    <div class="compare-wrap">
+      <table class="compare-table" id="compareTable">
+        <thead>
+          <tr>
+            <th>Protocol</th>
+            <th>PDR</th>
+            <th>Delay</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="compareBody">
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+// PROTOCOL PROFILES (based on real research literature)
+// ============================================================
+const PROTOCOLS = {
+  AODV: {
+    color: '#00d4ff',
+    pdr: [85, 95],      // % range
+    delay: [30, 80],    // ms
+    throughput: [180, 280], // kbps
+    overhead: [8, 18],  // ctrl pkts/s
+    description: 'On-demand route discovery. Best for high mobility.',
+    strengths: ['High mobility', 'Scalable', 'Low idle overhead'],
+    weakness: 'Route discovery latency'
+  },
+  DSR: {
+    color: '#ff6b35',
+    pdr: [75, 90],
+    delay: [40, 100],
+    throughput: [140, 230],
+    overhead: [12, 25],
+    description: 'Source routing. Best for small, stable networks.',
+    strengths: ['No periodic updates', 'Multiple routes cached'],
+    weakness: 'Header overhead grows with path length'
+  },
+  DSDV: {
+    color: '#00ff88',
+    pdr: [70, 88],
+    delay: [15, 45],
+    throughput: [120, 200],
+    overhead: [20, 40],
+    description: 'Table-driven. Constant routing table maintenance.',
+    strengths: ['Low latency', 'Loop-free', 'Always ready'],
+    weakness: 'High control overhead in dynamic networks'
+  },
+  OLSR: {
+    color: '#ffd700',
+    pdr: [78, 92],
+    delay: [20, 55],
+    throughput: [150, 250],
+    overhead: [15, 30],
+    description: 'Optimized link state. Uses MPR to reduce flooding.',
+    strengths: ['Efficient flooding', 'Suitable for dense networks'],
+    weakness: 'MPR selection overhead'
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let currentProtocol = 'AODV';
+let simRunning = false;
+let simInterval = null;
+let metricInterval = null;
+let nodes = [];
+let packets = [];
+let routes = [];
+let pdrHistory = [];
+let tputHistory = [];
+let tick = 0;
+let comparisonData = { AODV: null, DSR: null, DSDV: null, OLSR: null };
+
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+const canvas = document.getElementById('manetCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = canvas.offsetWidth;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ============================================================
+// NODE INIT
+// ============================================================
+function initNodes() {
+  const n = parseInt(document.getElementById('nodeCount').value);
+  nodes = [];
+  for (let i = 0; i < n; i++) {
+    nodes.push({
+      id: i,
+      x: 40 + Math.random() * (canvas.width - 80),
+      y: 40 + Math.random() * (canvas.height - 80),
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      radius: 8,
+      active: true,
+      isSource: i === 0,
+      isDest: i === n - 1,
+      energy: 0.6 + Math.random() * 0.4
+    });
+  }
+  packets = [];
+  routes = [];
+  pdrHistory = [];
+  tputHistory = [];
+}
+
+// ============================================================
+// DRAW
+// ============================================================
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background grid
+  ctx.strokeStyle = 'rgba(30,45,69,0.3)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < canvas.width; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  const proto = PROTOCOLS[currentProtocol];
+  const mobility = parseInt(document.getElementById('mobility').value);
+  const range = 80 + (30 - mobility) * 4;
+
+  // Draw links
+  nodes.forEach((a, i) => {
+    nodes.slice(i + 1).forEach(b => {
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (dist < range) {
+        const alpha = (1 - dist / range) * 0.25;
+        ctx.strokeStyle = `rgba(30,45,69,${alpha + 0.15})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    });
+  });
+
+  // Draw active routes
+  routes.forEach(r => {
+    if (r.alpha > 0) {
+      ctx.strokeStyle = `${proto.color}${Math.floor(r.alpha * 255).toString(16).padStart(2,'0')}`;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      for (let i = 0; i < r.path.length; i++) {
+        const nd = nodes[r.path[i]];
+        if (!nd) continue;
+        i === 0 ? ctx.moveTo(nd.x, nd.y) : ctx.lineTo(nd.x, nd.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      r.alpha -= 0.005;
+    }
+  });
+  routes = routes.filter(r => r.alpha > 0);
+
+  // Draw packets
+  packets.forEach(p => {
+    if (!p.active) return;
+    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 6);
+    grad.addColorStop(0, proto.color);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = proto.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Draw nodes
+  nodes.forEach(node => {
+    // Glow for source/dest
+    if (node.isSource || node.isDest) {
+      const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, 20);
+      const c = node.isSource ? proto.color : '#ff6b35';
+      glow.addColorStop(0, c + '44');
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 20, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Node circle
+    ctx.fillStyle = node.isSource ? proto.color : node.isDest ? '#ff6b35' : '#0c1120';
+    ctx.strokeStyle = node.isSource ? proto.color : node.isDest ? '#ff6b35' : proto.color + '66';
+    ctx.lineWidth = node.isSource || node.isDest ? 2 : 1;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = node.isSource || node.isDest ? '#050810' : proto.color + 'cc';
+    ctx.font = `bold 7px JetBrains Mono`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.id, node.x, node.y);
+
+    // Source/Dest label
+    if (node.isSource || node.isDest) {
+      ctx.fillStyle = node.isSource ? proto.color : '#ff6b35';
+      ctx.font = '7px JetBrains Mono';
+      ctx.fillText(node.isSource ? 'SRC' : 'DST', node.x, node.y - 16);
+    }
+  });
+}
+
+// ============================================================
+// UPDATE SIMULATION
+// ============================================================
+function updateSimStep() {
+  const mobility = parseInt(document.getElementById('mobility').value) * 0.3;
+
+  nodes.forEach(node => {
+    node.x += node.vx * mobility;
+    node.y += node.vy * mobility;
+    // Bounce
+    if (node.x < 15 || node.x > canvas.width - 15) node.vx *= -1;
+    if (node.y < 15 || node.y > canvas.height - 15) node.vy *= -1;
+    node.x = Math.max(15, Math.min(canvas.width - 15, node.x));
+    node.y = Math.max(15, Math.min(canvas.height - 15, node.y));
+    // Slight random walk
+    node.vx += (Math.random() - 0.5) * 0.1;
+    node.vy += (Math.random() - 0.5) * 0.1;
+    node.vx = Math.max(-2, Math.min(2, node.vx));
+    node.vy = Math.max(-2, Math.min(2, node.vy));
+  });
+
+  // Move packets
+  packets.forEach(p => {
+    if (!p.active) return;
+    const target = nodes[p.targetIdx];
+    if (!target) { p.active = false; return; }
+    const dx = target.x - p.x, dy = target.y - p.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 8) {
+      p.hopIdx++;
+      if (p.hopIdx >= p.path.length) {
+        p.active = false;
+        p.delivered = true;
+      } else {
+        p.targetIdx = p.path[p.hopIdx];
+      }
+    } else {
+      p.x += (dx / dist) * 4;
+      p.y += (dy / dist) * 4;
+    }
+  });
+  packets = packets.filter(p => p.active || tick % 60 === 0);
+
+  // Occasionally spawn packets
+  const traffic = parseInt(document.getElementById('traffic').value);
+  if (simRunning && Math.random() < traffic * 0.02) {
+    spawnPacket();
+  }
+}
+
+function spawnPacket() {
+  const n = nodes.length;
+  const path = buildRoute(0, n - 1);
+  if (path.length < 2) return;
+  routes.push({ path: [...path], alpha: 0.7 });
+  packets.push({
+    x: nodes[0].x, y: nodes[0].y,
+    path: path,
+    hopIdx: 1,
+    targetIdx: path[1],
+    active: true,
+    delivered: false
+  });
+}
+
+function buildRoute(src, dst) {
+  // Simple random multi-hop path through existing nodes
+  const n = nodes.length;
+  if (n < 2) return [];
+  let path = [src];
+  let hops = 1 + Math.floor(Math.random() * Math.min(4, n - 2));
+  let used = new Set([src, dst]);
+  for (let h = 0; h < hops; h++) {
+    const candidates = nodes.map((_, i) => i).filter(i => !used.has(i));
+    if (!candidates.length) break;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    path.push(pick);
+    used.add(pick);
+  }
+  path.push(dst);
+  return path;
+}
+
+// ============================================================
+// METRICS UPDATE
+// ============================================================
+function updateMetrics() {
+  if (!simRunning) return;
+  tick++;
+  const proto = PROTOCOLS[currentProtocol];
+  const mobility = parseInt(document.getElementById('mobility').value);
+  const traffic = parseInt(document.getElementById('traffic').value);
+
+  // Simulate metric variation based on protocol and params
+  const mobilityFactor = 1 - (mobility - 1) / 12;
+  const trafficFactor = 1 - (traffic - 1) / 14;
+
+  const pdr = rand(proto.pdr[0], proto.pdr[1]) * mobilityFactor + Math.random() * 3 - 1.5;
+  const delay = rand(proto.delay[0], proto.delay[1]) * (1 + (mobility - 1) * 0.08) + Math.random() * 5;
+  const tput = rand(proto.throughput[0], proto.throughput[1]) * trafficFactor + Math.random() * 10;
+  const ovhd = rand(proto.overhead[0], proto.overhead[1]) * (1 + (mobility - 1) * 0.05) + Math.random() * 2;
+
+  const pdrV = Math.min(99, Math.max(40, pdr)).toFixed(1);
+  const delayV = Math.max(10, delay).toFixed(0);
+  const tputV = Math.max(50, tput).toFixed(0);
+  const ovhdV = Math.max(3, ovhd).toFixed(0);
+
+  // Update DOM
+  setMetric('pdr', pdrV, '%', pdrHistory.length > 0 ? pdrV - pdrHistory[pdrHistory.length - 1] : 0, true);
+  setMetric('delay', delayV, 'ms', 0, false);
+  setMetric('tput', tputV, 'kbps', 0, true);
+  setMetric('ovhd', ovhdV, 'ctrl/s', 0, false);
+
+  // History
+  pdrHistory.push(parseFloat(pdrV));
+  tputHistory.push(parseFloat(tputV));
+  if (pdrHistory.length > 20) pdrHistory.shift();
+  if (tputHistory.length > 20) tputHistory.shift();
+
+  drawSparkline('spark-pdr', pdrHistory, PROTOCOLS[currentProtocol].color, 0, 100);
+  drawSparkline('spark-tput', tputHistory, '#7c3aed', 0, 350);
+
+  // Update comparison data
+  comparisonData[currentProtocol] = { pdr: pdrV, delay: delayV };
+  updateComparisonTable();
+
+  // Log events occasionally
+  if (tick % 8 === 0) addLog();
+}
+
+function setMetric(id, val, unit, trend, higherIsBetter) {
+  document.getElementById('v-' + id).textContent = val;
+  const card = document.getElementById('mc-' + id);
+  card.classList.add('updating');
+  setTimeout(() => card.classList.remove('updating'), 500);
+  const t = document.getElementById('t-' + id);
+  if (Math.abs(trend) > 0.3) {
+    const good = (higherIsBetter && trend > 0) || (!higherIsBetter && trend < 0);
+    t.className = 'm-trend ' + (good ? 'up' : 'down');
+    t.textContent = (trend > 0 ? '▲ ' : '▼ ') + Math.abs(trend).toFixed(1);
+  } else {
+    t.className = 'm-trend'; t.textContent = '→ stable';
+  }
+}
+
+function rand(min, max) { return min + Math.random() * (max - min); }
+
+// ============================================================
+// SPARKLINES
+// ============================================================
+function drawSparkline(id, data, color, min, max) {
+  const svg = document.getElementById(id);
+  if (!data.length) return;
+  const w = 300, h = 50;
+  const step = w / (data.length - 1 || 1);
+  const points = data.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / (max - min)) * h;
+    return `${x},${Math.max(2, Math.min(h - 2, y))}`;
+  });
+
+  const area = `M${points.join('L')} L${(data.length - 1) * step},${h} L0,${h} Z`;
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="grad-${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${area}" fill="url(#grad-${id})"/>
+    <polyline points="${points.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="${(data.length - 1) * step}" cy="${h - ((data[data.length - 1] - min) / (max - min)) * h}" r="3" fill="${color}"/>
+  `;
+}
+
+// ============================================================
+// LOG
+// ============================================================
+const LOG_MESSAGES = {
+  AODV: [
+    ['info', 'RREQ broadcast from SRC → DST'],
+    ['ok', 'RREP received, route established'],
+    ['ok', 'Packet delivered via 3-hop path'],
+    ['warn', 'Link break detected, re-routing...'],
+    ['info', 'RERR sent, alternate path found'],
+    ['ok', 'Route cache updated'],
+  ],
+  DSR: [
+    ['info', 'Route discovery initiated'],
+    ['ok', 'Source route cached: 0→4→7→N'],
+    ['warn', 'Stale route detected in cache'],
+    ['info', 'DSR header attached to packet'],
+    ['ok', 'Delivery via cached route'],
+    ['warn', 'Cache overflow, LRU eviction'],
+  ],
+  DSDV: [
+    ['info', 'Routing table broadcast triggered'],
+    ['ok', 'Table synchronized with neighbors'],
+    ['warn', 'Sequence number mismatch detected'],
+    ['info', 'Incremental update sent'],
+    ['ok', 'Convergence achieved'],
+    ['warn', 'High overhead due to mobility'],
+  ],
+  OLSR: [
+    ['info', 'HELLO message broadcast'],
+    ['ok', 'MPR selected for topology control'],
+    ['info', 'TC message propagated via MPR'],
+    ['ok', 'Routing table updated'],
+    ['warn', 'MPR re-selection due to link change'],
+    ['ok', 'Optimized flooding complete'],
+  ]
+};
+let logIdx = 0;
+
+function addLog() {
+  const msgs = LOG_MESSAGES[currentProtocol];
+  const [type, msg] = msgs[logIdx % msgs.length];
+  logIdx++;
+  const box = document.getElementById('logBox');
+  const now = new Date();
+  const ts = `${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const div = document.createElement('div');
+  div.className = `log-entry ${type}`;
+  div.innerHTML = `<span class="ts">[${ts}]</span><span class="msg">[${currentProtocol}] ${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  if (box.children.length > 30) box.removeChild(box.firstChild);
+}
+
+// ============================================================
+// COMPARISON TABLE
+// ============================================================
+function updateComparisonTable() {
+  const body = document.getElementById('compareBody');
+  body.innerHTML = '';
+  Object.keys(PROTOCOLS).forEach(p => {
+    const d = comparisonData[p];
+    const proto = PROTOCOLS[p];
+    const row = document.createElement('tr');
+    const pdrVal = d ? d.pdr : '—';
+    const delayVal = d ? d.delay : '—';
+    const pdrPct = d ? (parseFloat(d.pdr) / 100) * 100 : 0;
+    row.innerHTML = `
+      <td style="color:${proto.color};font-weight:600;">${p}</td>
+      <td>${pdrVal}${d ? '%' : ''}</td>
+      <td>${delayVal}${d ? 'ms' : ''}</td>
+      <td class="bar-cell">
+        <div class="mini-bar">
+          <div class="mini-bar-fill" style="width:${pdrPct}%;background:${proto.color}"></div>
+        </div>
+      </td>
+    `;
+    body.appendChild(row);
+  });
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+function selectProtocol(p) {
+  currentProtocol = p;
+  document.querySelectorAll('.proto-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-p="${p}"]`).classList.add('active');
+  const tag = document.getElementById('protoTag');
+  tag.textContent = p;
+  tag.style.background = PROTOCOLS[p].color + '22';
+  tag.style.color = PROTOCOLS[p].color;
+  tag.style.border = `1px solid ${PROTOCOLS[p].color}44`;
+  logIdx = 0;
+  document.getElementById('logBox').innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'log-entry info';
+  div.innerHTML = `<span class="ts">[ -- ]</span><span class="msg">Protocol switched to ${p} — ${PROTOCOLS[p].description}</span>`;
+  document.getElementById('logBox').appendChild(div);
+}
+
+function updateSim() {
+  document.getElementById('nodeCountVal').textContent = document.getElementById('nodeCount').value;
+  document.getElementById('mobilityVal').textContent = document.getElementById('mobility').value;
+  document.getElementById('trafficVal').textContent = document.getElementById('traffic').value;
+  if (!simRunning) initNodes();
+}
+
+function runSimulation() {
+  if (simRunning) return;
+  simRunning = true;
+  initNodes();
+  document.querySelector('.btn-primary').textContent = '● RUNNING';
+
+  simInterval = setInterval(() => {
+    updateSimStep();
+    draw();
+  }, 40);
+
+  metricInterval = setInterval(updateMetrics, 1500);
+  selectProtocol(currentProtocol);
+}
+
+function resetSim() {
+  simRunning = false;
+  clearInterval(simInterval);
+  clearInterval(metricInterval);
+  document.querySelector('.btn-primary').textContent = '▶ RUN SIM';
+  ['pdr','delay','tput','ovhd'].forEach(id => {
+    document.getElementById('v-' + id).textContent = '—';
+    document.getElementById('t-' + id).textContent = '–';
+  });
+  document.getElementById('spark-pdr').innerHTML = '';
+  document.getElementById('spark-tput').innerHTML = '';
+  document.getElementById('logBox').innerHTML = '';
+  comparisonData = { AODV: null, DSR: null, DSDV: null, OLSR: null };
+  updateComparisonTable();
+  initNodes();
+  draw();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+selectProtocol('AODV');
+initNodes();
+draw();
+updateComparisonTable();
+
+// Draw idle loop
+function idleLoop() {
+  if (!simRunning) {
+    // Gentle drift in idle
+    nodes.forEach(node => {
+      node.x += node.vx * 0.2;
+      node.y += node.vy * 0.2;
+      if (node.x < 15 || node.x > canvas.width - 15) node.vx *= -1;
+      if (node.y < 15 || node.y > canvas.height - 15) node.vy *= -1;
+    });
+    draw();
+  }
+  requestAnimationFrame(idleLoop);
+}
+idleLoop();
+</script>
+</body>
+</html>
